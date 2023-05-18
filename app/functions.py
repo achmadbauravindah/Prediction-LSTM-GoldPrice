@@ -5,6 +5,7 @@ import streamlit as st
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import pickle
+from datetime import datetime, timedelta
 
 
 # Get and Build Data from Excel
@@ -23,41 +24,51 @@ def getPerYearDataset(year):
     df = getDataset()
     this_year_dataset = df.loc[df.index.year == year]
     return this_year_dataset
-    
-def getLastData(dataset):
-    # Data Normalization
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    dataset_arr = np.array(dataset)
-    dataset_norm = scaler.fit_transform(dataset_arr.reshape(-1, 1))
-    # Get Last Data (1 Row 500 Window/Column)
-    last_data = dataset_norm[-500:].reshape(1, -1)  # Reshape for model predict
-    # Save Scaler to Pickle File
-    with open('files/scaler_model.pkl', 'wb') as file:
-        pickle.dump(scaler, file)
-    return last_data
 
-def denormData(data):
+def normData(values):
     with open('files/scaler_model.pkl', 'rb') as file:
         scaler = pickle.load(file)
-    return scaler.inverse_transform(data.reshape(-1, 1))
+    return scaler.transform(values)
 
-# Model Predict Last Data in N-After Days
-def predictAfterNDays(n_days, dataset):
-    X_before_days = getLastData(dataset)  # 1 Row 500 Window
-    predicted_values = []
+def denormmData(values):
+    with open('files/scaler_model.pkl', 'rb') as file:
+        scaler = pickle.load(file)
+    return scaler.inverse_transform(values)
+
+# Model forecast Last Data in N-After Days
+def modelForecast(dataset, n_days):
+    last_data_window = np.array(dataset[-500:])
+    last_data_window_normed = normData(last_data_window).reshape(1, -1) # reshape for model LSTM input
+    forecasted_values = []
     model = tf.keras.models.load_model("files/lstm-model-0.01mae.hdf5")
     for n in range(n_days):
-        # Predict Values
-        predicted_value = model.predict(X_before_days, verbose=0)
-        # Add Predicted Values to List
-        predicted_values.append(predicted_value)
-        # Slice X_before_days to new data with predicted values
-        X_before_days = np.append(X_before_days, predicted_value)
-        X_before_days = X_before_days[1:].reshape(1, -1)
-    # Denormalization Predicted Values
-    predicted_values = np.array(predicted_values)
-    predicted_values_denorm = denormData(predicted_values)
-    return predicted_values_denorm
+        # forecast Values
+        forecasted_value = model.predict(last_data_window_normed, verbose=0)
+        # Add forecasted Values to List
+        forecasted_values.append(forecasted_value)
+        # Slice last_data_window_normed to new data with forecasted values
+        last_data_window_normed = np.append(last_data_window_normed, forecasted_value)
+        last_data_window_normed = last_data_window_normed[1:].reshape(1, -1)
+    # Denormalization forecasted Values
+    forecasted_values = np.array(forecasted_values).reshape(1, -1)
+    forecasted_values_denorm = denormmData(forecasted_values).reshape(-1)
+    return forecasted_values_denorm
+
+
+def mainForecast(dataset, n_days):
+    forecasted_values = modelForecast(dataset, n_days)
+    last_date = dataset.index[-1]
+    future_timestamps = []
+    for i in range(n_days):
+        if i < n_days:
+            future_timestamp = last_date + timedelta(days=i)
+            future_timestamps.append(future_timestamp)
+        else:
+            break
+    forecasted_df = pd.DataFrame(data=forecasted_values, index=future_timestamps, columns=['Harga'])
+    return forecasted_df
+
+
 
 # Create Plot with Plot Express
 def createLinePlot(DataFrame, x_axes, y_axes, title='Plot'):
@@ -125,11 +136,12 @@ def plotPerMonth(dataset, title):
     fig_plot = createBarPlot(dataset_df, x_axes, y_axes, title=title)
     st.plotly_chart(fig_plot)
 
-def plotForecasetResult(results_data):
+
+def plotForecasetResult(results_data, title):
     # Convert to Dataframe
     results_data_df = pd.DataFrame(results_data)
     # Show Plot
     x_axes = results_data_df.index
-    y_axes = results_data_df[0]
-    fig_plot = createLinePlot(results_data_df, x_axes, y_axes, title="Forecaset Results")
+    y_axes = results_data_df['Harga']
+    fig_plot = createLinePlot(results_data_df, x_axes, y_axes, title=title)
     st.plotly_chart(fig_plot)

@@ -3,6 +3,8 @@ import functions as f
 from datetime import datetime
 
 ##################################### ALL VARIBLE USED #####################################
+# Get All Dataset
+df_all_year = f.getDataset()
 # Get Dataset in 2019
 df_2019 = f.getPerYearDataset(2019)
 # Get Dataset Per Month in 2019
@@ -33,7 +35,7 @@ st.sidebar.write("Rentang Harga :    {}rb-{}rb".format(harga_min, harga_max))
 st.sidebar.write("Rata-rata     :    {}rb".format(harga_rata2))
 with st.sidebar:
     st.markdown(
-        f'<span style="font-size:12px; font-style:italic;">Terakhir diperbarui pada {datetime.strftime(df_2019.index[-1],"%d-%m-%Y")}</span>', unsafe_allow_html=True)
+        f'<span style="font-size:12px; font-style:italic;">Terakhir diperbarui pada {datetime.strftime(df_all_year.index[-1],"%d-%m-%Y")}</span>', unsafe_allow_html=True)
 
 
 # BODY
