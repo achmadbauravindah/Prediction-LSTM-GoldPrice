@@ -10,22 +10,20 @@ import pickle
 # Get and Build Data from Excel
 def getDataset():
     # Get data from directory
-    data_path = 'files/historical-gold-data.xlsx'
-    data = pd.read_excel(data_path)
-    # Set index dates to data
-    data["Date"] = pd.to_datetime(data.Date, dayfirst=True)
-    data.set_index("Date", inplace=True)
-    # Add Day Date with NaN Date Values
-    data_new = data.reindex(pd.date_range('1985-01-01', '2023-03-14'))  # ! Change Periodically
-    # Impute Missing Values
-    price_data = data_new['Price']
-    price_data = price_data.fillna(method='ffill')  # Interpolate NaN data (based on before and after value)
-    price_data[0] = price_data[1]  # First data can't to interpolate, so this is to rise it
-    # Convert USD to IDR
-    price_data_rupiah = (price_data/28.3495)*14687
-    
-    return price_data_rupiah
+    dataset_path = 'files/preprocessed_dataset.xlsx'
+    preprocessed_dataset = pd.read_excel(dataset_path)
+    # Set index Tanggal to data
+    preprocessed_dataset['Tanggal'] = pd.to_datetime(preprocessed_dataset.Tanggal, dayfirst=True)
+    preprocessed_dataset.set_index(preprocessed_dataset.Tanggal, inplace=True)
+    # Drop unused columns
+    preprocessed_dataset.drop(columns=['Unnamed: 0', 'Tanggal'], inplace=True)
+    return preprocessed_dataset
 
+def getPerYearDataset(year):
+    df = getDataset()
+    this_year_dataset = df.loc[df.index.year == year]
+    return this_year_dataset
+    
 def getLastData(dataset):
     # Data Normalization
     scaler = MinMaxScaler(feature_range=(0, 1))
@@ -62,8 +60,7 @@ def predictAfterNDays(n_days, dataset):
     return predicted_values_denorm
 
 # Create Plot with Plot Express
-def createPlotExpress(DataFrame, x_axes, y_axes, title='Plot'):
-
+def createLinePlot(DataFrame, x_axes, y_axes, title='Plot'):
     fig = px.line(DataFrame, x=x_axes, y=y_axes, title=title)
     fig.update_xaxes(
         rangeslider_visible=True,
@@ -77,17 +74,55 @@ def createPlotExpress(DataFrame, x_axes, y_axes, title='Plot'):
             ])
         )
     )
+    fig.update_layout(
+        title={
+            'text': title,
+            'x': 0.5,
+            'xanchor': 'center',
+            'yanchor': 'top',
+            'font': {'size': 30, 'color': '#656EF2'},
+        }, 
+        xaxis_title='Waktu',
+    )
     return fig
 
-    
 
-def plotDataset(dataset):
+def createBarPlot(DataFrame, x_axes, y_axes, title='Plot'):
+    # Membuat diagram batang interaktif menggunakan Plotly Express
+    fig = px.bar(DataFrame, x=x_axes, y=y_axes)
+
+    # Mengatur judul dan label sumbu
+    title_plot = {
+        'text': title,
+        'x': 0.5,
+        'xanchor': 'center',
+        'yanchor': 'top',
+        'font': {'size': 20, 'color': '#656EF2'},
+    }
+    fig.update_layout(
+        title=title_plot,
+        xaxis_title='Waktu',
+        yaxis_title='Harga Emas'
+    )
+
+    return fig
+
+def plotPerYear(dataset, title='2023'):
     # Convert to Dataframe
     dataset_df = pd.DataFrame(dataset)
     # Show Plot
     x_axes = dataset_df.index
-    y_axes = dataset_df['Price']
-    fig_plot = createPlotExpress(dataset_df, x_axes, y_axes, title="Dataset")
+    y_axes = dataset_df['Harga']
+    fig_plot = createLinePlot(dataset_df, x_axes, y_axes, title=title)
+    st.plotly_chart(fig_plot)
+
+def plotPerMonth(dataset, title):
+    # Convert to Dataframe
+    dataset_df = pd.DataFrame(dataset)
+    # Show Plot
+    x_axes = dataset_df.index
+    y_axes = dataset_df['Harga']
+    fig_plot = createBarPlot(dataset_df, x_axes, y_axes, title=title)
     st.plotly_chart(fig_plot)
 
 def plotForecasetResult(results_data):
@@ -96,5 +131,5 @@ def plotForecasetResult(results_data):
     # Show Plot
     x_axes = results_data_df.index
     y_axes = results_data_df[0]
-    fig_plot = createPlotExpress(results_data_df, x_axes, y_axes, title="Forecaset Results")
+    fig_plot = createLinePlot(results_data_df, x_axes, y_axes, title="Forecaset Results")
     st.plotly_chart(fig_plot)
