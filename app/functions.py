@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 # Get and Build Data from Excel
 def getDataset():
     # Get data from directory
-    dataset_path = 'files/preprocessed_dataset.xlsx'
+    dataset_path = 'preprocessed_dataset.xlsx'
     preprocessed_dataset = pd.read_excel(dataset_path)
     # Set index Tanggal to data
     preprocessed_dataset['Tanggal'] = pd.to_datetime(preprocessed_dataset.Tanggal, dayfirst=True)
@@ -26,12 +26,12 @@ def getPerYearDataset(year):
     return this_year_dataset
 
 def normData(values):
-    with open('files/scaler_model.pkl', 'rb') as file:
+    with open('scaler_model.pkl', 'rb') as file:
         scaler = pickle.load(file)
     return scaler.transform(values)
 
 def denormmData(values):
-    with open('files/scaler_model.pkl', 'rb') as file:
+    with open('scaler_model.pkl', 'rb') as file:
         scaler = pickle.load(file)
     return scaler.inverse_transform(values)
 
@@ -40,7 +40,7 @@ def modelForecast(dataset, n_days):
     last_data_window = np.array(dataset[-500:])
     last_data_window_normed = normData(last_data_window).reshape(1, -1) # reshape for model LSTM input
     forecasted_values = []
-    model = tf.keras.models.load_model("files/lstm-model-0.01mae.hdf5")
+    model = tf.keras.models.load_model("lstm-model-0.01mae.hdf5")
     for n in range(n_days):
         # forecast Values
         forecasted_value = model.predict(last_data_window_normed, verbose=0)
